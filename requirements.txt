@@ -1,0 +1,5 @@
+yfinance
+mplfinance
+groq
+python-telegram-bot
+pillow
