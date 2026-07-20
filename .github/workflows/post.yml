@@ -1,0 +1,30 @@
+name: Daily Trading Post
+
+on:
+  schedule:
+    # Каждый будний день (пн-пт) в 9:00 UTC (12:00 по Москве)
+    - cron: '0 9 * * 1-5'
+  workflow_dispatch:   # позволяет запустить вручную
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run agent
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+        run: python agent.py
