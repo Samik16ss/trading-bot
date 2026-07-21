@@ -8,26 +8,26 @@ from datetime import datetime
 import smtplib
 from email.message import EmailMessage
 
-# --- Настройки из секретов ---
+# Настройки (будут подставлены из секретов GitHub)
 TELEGRAM_TOKEN = os.environ['TELEGRAM_TOKEN']
 CHANNEL_ID = os.environ['CHANNEL_ID']
 GEMINI_API_KEY = os.environ['GEMINI_API_KEY']
-EMAIL_ADDRESS = os.environ.get('EMAIL_ADDRESS')
+EMAIL_ADDRESS = os.environ.get('EMAIL_ADDRESS')     # если не нужен email, можно пропустить
 EMAIL_PASSWORD = os.environ.get('EMAIL_PASSWORD')
 
-# Настраиваем Gemini
+# Подключаем Gemini
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-1.5-flash')  # быстрая и бесплатная модель
+model = genai.GenerativeModel('gemini-1.5-flash')  # быстрая бесплатная модель
 
-TICKER = 'AAPL'
+TICKER = 'AAPL'  # тикер акции (можно поменять)
 
-# --- 1. Данные ---
+# 1. Скачиваем данные о цене
 data = yf.download(TICKER, period='5d', interval='1h')
 last_price = data['Close'].iloc[-1]
 first_price = data['Close'].iloc[0]
 price_change = (last_price - first_price) / first_price * 100
 
-# --- 2. Генерация текста через Gemini ---
+# 2. Просим Gemini написать пост
 prompt = f"""
 Ты – аналитик фондового рынка. Акция {TICKER}.
 Последняя цена: {last_price:.2f}, изменение за 5 дней: {price_change:.1f}%.
@@ -41,21 +41,21 @@ prompt = f"""
 response = model.generate_content(prompt)
 post_text = response.text.strip()
 
-# --- 3. График ---
+# 3. Рисуем график
 mpf.plot(data, type='candle', volume=True,
          title=f'{TICKER} 5-дневный график',
          savefig='chart.png')
 
-# --- 4. Telegram ---
+# 4. Отправляем в Telegram
 async def send_telegram():
     bot = Bot(token=TELEGRAM_TOKEN)
     with open('chart.png', 'rb') as photo:
         await bot.send_photo(chat_id=CHANNEL_ID, photo=photo, caption=post_text)
-    print('Telegram: пост отправлен')
+    print('Пост отправлен в Telegram')
 
 asyncio.run(send_telegram())
 
-# --- 5. Email (для Instagram) ---
+# 5. Отправляем копию на почту (если заданы настройки)
 if EMAIL_ADDRESS and EMAIL_PASSWORD:
     msg = EmailMessage()
     msg['Subject'] = f'Новый пост по {TICKER} ({datetime.now().strftime("%d.%m.%Y")})'
@@ -68,9 +68,8 @@ if EMAIL_ADDRESS and EMAIL_PASSWORD:
     with smtplib.SMTP_SSL('smtp.gmail.com', 465) as smtp:
         smtp.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
         smtp.send_message(msg)
-    print('Email: пост отправлен')
+    print('Письмо отправлено на почту')
 else:
-    print('Email-настройки не заданы, пропускаем.')
-
+    print('Email не настроен, пропускаем.')
 
 
